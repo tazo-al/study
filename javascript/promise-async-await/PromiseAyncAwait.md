@@ -55,7 +55,7 @@ loadScript("/my/script", function () {
 
 ### 콜백 속 콜백
 
-- 스크립트가 두 개 있고 두 번째 스크립트 로딩은 첫 번째 스크립트의 로딩이 끝난 이후가 되질 원한다면 어떻게 해야 할까?
+- 스크립트가 두 개 있고 두 번째 스크립트 로딩은 첫 번째 스크립트의 로딩이 끝난 이후가 되길 원한다면 어떻게 해야 할까?
 
 ```js
 loadScript("/my/script.js", function (script) {
@@ -137,7 +137,7 @@ loadScript("1.js", function (error, script) {
 - 호출이 중첩되면서 코드가 깊어지고 중간에 반복문과 조건문이 있느 코드가 있으면 관리가 힘들어짐.
 - 이렇게 깊은 중첩 코드가 만들어내는 패턴을 콜백 지옥, 멸망의 피라미드라고 불림.
 
-![콜백 지옥](./callback-hell.png);
+![콜백 지옥](./images/callback-hell.png);
 
 - 비동기 동작이 하나씩 추가될 때마다 중첩 호출이 만들어내는 피라미드는 오른쪽으로 커짐.
 - 이런 코딩 방식은 좋지 않으므로 각 동작을 동립적인 함수로 만들어 위와 같은 문제를 완화해보자.
@@ -187,9 +187,11 @@ let promise = new Promise(function (resolve, reject) {
   - `resolve(value)`: 일이 성공적으로 끝난 경우 그 결과를 나타내는 `value`와 함께 호출
   - `reject(error)`: 에러 발생 시 에러 객체를 나타내는 `error`와 함께 호출
 - `new Promise` 생성자가 반환하는 `promise` 객체는 다음과 같은 내부 프로퍼티를 갖는다.
+
   - `state`: 처음엔 `pending`(보류)이었다 `resolve`가 호출되면 `fulfilled`, `reject`가 호출되면 `rejected`로 변한다.
   - `result`: 처음엔 `undefined`이었다 `resolve(value)`가 호출되면 `value`로, `reject(error)`가 호출되면 `error`로 변한다.
-    ![Promise 상태 변화](./promise.png)
+
+    ![Promise 상태 변화](./images/promise.png)
 
 ```js
 let promise = new Promise(function (resolve, reject) {
@@ -418,7 +420,9 @@ new Promise(function (resolve, reject) {
 ```
 
 - 프라미스 체이닝은 `result`가 `.then` 핸들러의 체인을 통해 전달된다는 점에서 착안한 아이디어다.
-  ![promise chaining](./promise-chaning.png)
+
+  ![promise chaining](./images/promise-chaning.png)
+
 - `result`가 핸들러 체인을 따라 전달되므로, `alert` 창엔 `1`, `2`, `4`가 순서대로 출려된다.
 - 프라미스 체이닝이 가능한 이유는 `promise.then`을 호출하면 프라미스가 반환되기 때문이다.
 - 한편 핸들러가 값을 반환할 때엔 이 값이 프라미스의 `result`가 된다. 따라서 다음 `.then`은 이 값을 이용해 호출된다.
@@ -444,7 +448,7 @@ new Promise(function (resolve, reject) {
   ```
 
   - 핸들러는 `result`를 순차적으로 전달하지 않고 독립적으로 처리된다.
-    ![not promise chaining](./not-promise-chaining.png)
+    ![not promise chaining](./images/not-promise-chaining.png)
   - 동일한 프라미스에 등록된 `.then` 모두는 동일한 결과를 받는다. 따라서 위 예시를 실행하면 모두 `1`이 출력된다.
   - 이런 식으로 한 프라미스에 여러 핸들러를 등록하는 경우는 거의 없고 주로 체이닝을 사용한다.
 
@@ -635,7 +639,8 @@ loadJson(/article/promise-chaining/user.json)
 
 - `.then` 또는 `.catch`, `.finally`의 핸들러가 프라미스를 반환하면, 나머지 체인은 프라미스가 처리될 때까지 대기한다.
 - 처리가 완료되면 프라미스의 `result`(값 또는 에러)가 다음 체인으로 전달된다.
-  ![promise-chaining](./promise-chaining2.png)
+
+  ![promise-chaining](./images/promise-chaining2.png)
 
 ## 4. 프라미스와 에러 핸들링
 
@@ -879,6 +884,313 @@ Promise.all([
 
 ## 6. 프라미스화
 
+- 콜백을 받는 함수를 프라미스를 반환하는 함수로 변환하는 것을 프라미스화(promisification)라고 한다.
+- 콜백보다는 프라미스가 더 편리하기 때문에 콜백 기반 함수와 라이브러리를 프라미스를 반환하는 함수로 바꾸는 게 좋은 경우가 종종 생긴다.
+
+```js
+function loadScript(src, callback) {
+  let script = document.createElement("script");
+  script.src = src;
+
+  script.onload = () => callback(null, script);
+  script.onerror = () =>
+    callback(new Error(`${src}를 불러오는 도중에 에러 발생!`));
+
+  document.head.append(script);
+}
+```
+
+- 콜백 챕터에서 사용했던 `loadScript` 예시를 사용해 프라미스화에 대해 알아보자.
+
+```js
+let loadScriptPromise = function (src) {
+  return new Promise((resolve, reject) => {
+    loadScript(src, (err, script) => {
+      if (err) reject(err);
+      else resolve(script);
+    });
+  });
+};
+```
+
+- 새로운 함수 `loadScriptPromise`는 `loadScript`와 동일하게 동작하지만 `callback`을 제외한 `src`만 인수로 받고 프라미스를 반환한다.
+- 하지만 실무에서는 함수가 하나가 아닌 여러 함수를 프라미스화 해야 하기 때문에 헬퍼 함수를 만들어 프라미스화를 적용할 함수 `f`를 받고 래퍼 함수를 반환하는 함수 `promisify(f)`를 만들어보자.
+
+```js
+function promisify(f) {
+  return function (...args) {
+    return new Promise((resolve, reject) => {
+      function callback(err, result) {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(result);
+        }
+      }
+
+      args.push(callback);
+
+      f.call(this, ...args);
+    });
+  };
+}
+
+let loadScriptPromise = promisify(loadScript);
+loadScriptPromise(...).then(...);
+```
+
+- 위 예시는 프라미스화 할 함수의 인수가 `(err, result)`인 콜백을 받을 것이라 가정하고 작성됐다.
+- 함수 `f`가 `callback(err, res1, res2, ...)`을 받는 경우를 대비하여 좀 더 진화된 헬퍼 함수를 만들어보자.
+
+```js
+function promisify(f, manyArgs = false) {
+  return function (...args) {
+    return new Promise((resolve, reject) => {
+      function callback(err, ...results) {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(manyArgs ? results : results[0]);
+        }
+      }
+
+      args.push(callback);
+      f.call(this, ...args);
+    });
+  };
+}
+
+f = promisify(f, true);
+f(...).then(arrOfResults => ..., err -> ...)
+```
+
+- `callback(result)` 같이 `err`이 없는 형태나 지금까지 언급하지 않은 형태의 이색적인 콜백도 있을 수 있는데, 이런 경우엔 직접 프라미스화 하면 된다.
+- 프라미스화는 곧 배우게 될 `async/await`와 함께 사용하면 더 좋다. 다만, 콜백을 완전히 대체하지는 못한다.
+- 프라미스는 하나의 결과만 가질 수 있지만, 콜백은 여러 번 호출할 수 있다.
+- 따라서 프라미스화는 콜백을 단 한 번 호출하는 함수에만 적용해야 한다.
+
 ## 7. 마이크로태스크
 
+- 프라미스 핸들러 `.then/catch/finally`는 항상 비동기적으로 실행된다.
+- 프라미스가 즉시 이행되도 아래에 있는 코드는 핸들러들이 실행되기 전에 실행된다.
+
+```js
+let promise = Promise.resolve();
+promise.then(() => alert("프라미스 성공!"));
+alert("코드 종료");
+```
+
+- 예시를 실행하면 "코드 종료"가 먼저, "프라미스 성공!"이 나중에 출력된다.
+- 프라미스는 즉시 이행상태가 됐는데도 왜 `.then`이 나중에 트리거 되었을꺄?
+
+### 마이크로태스크 큐
+
+- 비동기 작업을 처리하려면 적절한 관리가 필요하다.
+- 이를 위해 ECMA에선 `PromiseJobs`라는 내부 큐(Internal queue)를 명시한다.
+- V8 엔진에서는 이를 마이크로태스크 큐(microtask queue)라고 부른다.
+  - 마이크로태스크 큐는 먼저 들어온 작업을 먼저 실행한다(FIFO).
+  - 실행할 것이 아무것도 남아있지 않을 때만 마이크로 테스크 큐에 있는 작업이 실행되기 시작한다.
+- 그렇다면 "프라미스 성공!"을 먼저, "코드 종료"를 나중에 출력되게 하려면 어떻게 해야 할까?
+  ```js
+  Promise.resolve()
+    .then(() => alert("프라미스 성공!"))
+    .then(() => alert("코드 종료"));
+  ```
+
+### 처리되지 못한 거부
+
+- 처리되지 못한 거부는 마이크로태스크 큐 끝에서 프람미스 에러가 처리되지 못할 때 발생한다.
+- 정상적인 경우라면 개발자는 에러가 생길 것을 대비하여 프라미스 체인 안에 `.catch`를 추가해 에러를 처리한다.
+
+```js
+let promise = Promise.reject(new Error("프라미스 실패!"));
+promise.catch((err) => alert("잡았다!"));
+
+// 에러가 잘 처리돼서 실행되지 않음
+window.addEventListener("unhandledrejection", (event) => alert(event.reason));
+```
+
+- `.catch`를 추가하는 걸 잊은 경우, 엔진은 마이크로태스크 큐가 이후에 `unhandledrejection` 이벤트를 트리거 한다.
+
+```js
+let promise = Promise.reject(new Error("프라미스 실패!"));
+setTimeout(() => promise.catch((err) => alert("잡았다!")), 1000);
+
+// Error: 프라미스 실패!
+window.addEventListener("unhandledrejection", (event) => alert(event.reason));
+```
+
+- `setTimeout`을 이용해 에러를 나중에 처리하면 "프라미스 실패!"가 먼저, "잡았다!"가 나중에 출력된다.
+- `unhandledrejection`은 마이크로태스크 큐에 있는 작업 모두가 완료되었을 때 생성된다.
+- 엔진은 프라미스를 검사하고 이 중 하나라도 거부 상태면 `unhandledrejection` 핸들러를 트리거 한다.
+- `setTimeout`을 사용해 추가한 `.catch` 역시 트리거되지만 `unhandledrejection`이 발생한 이후에 트리거 되므로 "프라미스 실패!"가 출력된다.
+
+### 요약
+
+- 모든 프라미스 동작은 마이크로태스크 큐라 불리는 내부 프라미스 잡 큐에 들어가서 처리되기 때문에 프라미스 핸들링은 항상 비동기로 처리됨.
+- 따라서 `.then/catch/finally` 핸들러는 항상 현재 코드가 종료된 후에 호출된다.
+- 어떤 코드 조각을 핸들러 이후에 실행하고 싶다면 `.then`을 체인에 추가하고 이 안에 코드를 작성한다.
+
 ## 8. async와 await
+
+- `async/await`를 이용하면 프라미스를 쉽게 사용할 수 있다.
+
+### async 함수
+
+```js
+async function f() {
+  return 1;
+}
+```
+
+- `async` 키워드는 function 앞에 위치하고 해당 함수는 항상 프라미스를 반환한다.
+- 프라미스가 아닌 값을 반환해도 이행 상태의 프라미스로 값을 감싸 이행된 프라미스가 반환된다.
+
+```js
+async function f() {
+  return 1;
+}
+
+f().then(alert); // 1
+```
+
+- 위 함수를 호출하면 `result`가 `1`인 이행 프라미스가 반환된다.
+
+```js
+async function f() {
+  return Promise.resolve(1);
+}
+
+f().then(alert); // 1
+```
+
+- 명시적으로 프라미스를 반환하는 것도 가능하고 결과는 동일하다.
+- 또 다른 키워드 `await`는 `async` 함수 안에서만 동작한다.
+
+### await
+
+```js
+let value = await promise;
+```
+
+- 자바스크립트는 `await` 키워드를 만나면 프라미스가 처리될 때까지 기다리고 그 이후 결과가 반환된다.
+
+```js
+async function f() {
+  let promise = new Promise((resolve, reject) => {
+    setTimeout(() => resolve("완료!"), 1000);
+  });
+
+  let result = await promise;
+  alert(result);
+}
+
+f();
+```
+
+- 함수를 호출하고 함수 본문이 실행되는 도중에 `await` 키워드가 있는 라인에서 실행이 잠시 중단되었다가 프라미스가 처리되면 실행이 재개된다.
+- 이때 프라미스 객체의 `result` 값이 변수 result에 할당된다.
+- 따라서 위 예시를 실행하면 1초 뒤에 "완료!"가 출력된다.
+- 프라미스를 처리되길 기다리는 동안 엔진이 다른 일(다른 스크립트 실행, 이벤트 처리 등)을 할 수 있기 때문에 CPU 리소스가 낭비되지 않는다.
+- 프라미스 체이닝 챕터의 `showAvatar()` 예시를 `async/await`를 사용해 다시 작성해보자.
+
+  ```js
+  async function showAvatar() {
+    let response = await fetch("/article/promise-chaining/user.json");
+    let user = await response.json();
+
+    let githubResponse = await fetch(
+      `https://api.github.com/users/${user.name}`
+    );
+    let githubUser = await githubResponse.json();
+
+    let img = document.createElement("img");
+    img.src = githubUser.avatar_url;
+    img.className = "promise-avatar-example";
+    document.body.append(img);
+
+    await new Promise((resolve, reject) => setTimeout(resolve, 3000));
+    img.remove();
+    return githubUser;
+  }
+
+  showAvatar();
+  ```
+
+- `await`는 최상위 레벨 코드에서 작동하지 않지만 익명 async 함수로 코드를 감싸면 최상위 레벨 코드에도 `await`를 사용할 수 있다.
+- `promise.then`처럼 `await`에도 thenable 객체를 사용할 수 있다.
+- 메서드 이름 앞에 `async`를 추가하면 async 클래스 메서드를 선언할 수 있다.
+
+  ```js
+  class Waiter {
+    async wait() {
+      return await Promise.resolve(1);
+    }
+  }
+
+  new Waiter().wait().then(alert); // 1
+  ```
+
+### 에러 핸들링
+
+- 프라미스가 정상적으로 이행되면 `await promise`는 프라미스 객체의 `result`에 저장된 값을 반환한다.
+- 반면 프라미스가 거부되면 마치 `throw`문을 작성한 것처럼 에러가 던져진다.
+
+```js
+async function f() {
+  await Promise.reject(new Error("에러 발생!"));
+}
+```
+
+```js
+async function f() {
+  throw new Error("에러 발생!");
+}
+```
+
+- 위 두 코드는 동일하다.
+- `await`가 던진 에러는 `throw`가 던진 에러를 잡을 때처럼 `try-catch`를 사용해 잡을 수 있다.
+
+```js
+async function f() {
+  try {
+    let response = await fetch("유효하지 않는 주소");
+  } catch (err) {
+    alert(err);
+  }
+}
+
+f();
+```
+
+- 에러가 발생하면 제어 흐름이 `catch` 블록으로 넘어간다.
+- `try-catch`가 없으면 `f()`를 호출해 만든 프라미스가 거부 상태가 되어 `f()`에 `.catch`를 추가하면 거부된 프라미스를 처리할 수 있다.
+
+```js
+async function f() {
+  let response = await fetch("유효하지 않는 주소");
+}
+
+f().catch(alert);
+```
+
+- `.catch`를 추가하는 걸 잊으면 처리되지 않은 프라미스 에러가 발생한다.
+- 이런 에러는 전역 이벤트 핸들러 `unhandledrejection`을 사용해 잡을 수 있다.
+- `async/await`를 사용하면 `await`가 대기를 처리해주기 때문에 `.then`이 거의 필요하지 않다.
+- `.catch` 대신 일반 `try-catch`를 사용할 수 있다는 장점도 생긴다.
+- 하지만 문법 제약 때문에 `async` 함수 바깥의 최상위 레벨 코드에선 `await`를 사용할 수 없기 때문에 `.then/catch`를 추가해 최종 결과나 처리되지 못한 에러를 다룬다.
+- 여러 개의 프라미스가 모두 처리되길 기다려야 하는 상황이라면 `Promise.all`로 감싸고 여기에 `await`를 붙여 사용할 수 있다.
+  ```js
+  let results = await Promise.all([fetch(url1), fetch(url2), ...]);
+  ```
+  - 실패한 프라미스에서 발생한 에러는 보통 에러와 마찬가지로 `Promise.all`로 전파되기 때문에 `try-catch`로 감싸 잡을 수 있다.
+
+### 요약
+
+- function 앞에 `async` 키워드를 추가하면 두 가지 효과가 있다.
+  1. 함수는 언제나 프라미스를 반환한다.
+  2. 함수 안에서 `await`를 사용할 수 있다.
+- 프라미스 앞에 `await` 키워드를 붙이면 자바스크립트는 프라미스가 처리될 때까지 대기하고 완료되면 조건에 따라 아래와 같은 동작이 이어진다.
+  1. 에러 발생: 예외가 생성됨((에러가 발생한 장소에서 `throw error`를 호출한 것과 동일함)
+  2. 에러 미발생: 프라미스 객체의 result 값을 반환
+- `async/await`를 사용하면 `promise.then/catch`가 거의 필요없고 가끔 가장 바깥 스코프에서 비동기 처리가 필요할 때만 사용하면 된다.
