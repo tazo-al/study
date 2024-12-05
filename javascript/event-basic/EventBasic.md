@@ -597,5 +597,364 @@ table.onclick = function (event) {
 ```
 
 - ## 각 항목은 `<button>` 태그가 아닌 링크를 만들 때 쓰이는 `<a>` 태그를 사용해 만들었는데 여러 이유가 있다.
+  - 많은 사람이 마우스 오른쪽 버튼을 클릭한 후 새 창에서 열기를 클릭해 링크를 여는데 `<button>`이나 `<span>`을 쓰면 이 기능을 쓸 수 없다.
+  - 검색 엔진은 인덱싱을 하는 동안 `<a href="...">` 링크를 따라간다.
+
+```js
+menu.onclick = function (event) {
+  if (event.target.nodeName != "A") return;
+
+  let href = event.target.getAttribute("href");
+  alert(href);
+
+  return false; // 브라우저 동작 취소
+};
+```
+
+- `return false`를 생략하면 핸들러가 실행되었을 때 브라우저는 기본 동작을 수행한다.
+
+### addEventListener의 passive 옵션
+
+- `addEventListener`의 `passive: true` 옵션은 브라우저에게 `preventDefault()`를 호출하지 않겠다고 알리는 역할을 한다.
+- 브라우저는 스크롤링을 발생시키는 이벤트를 감지했을 때 먼저 모든 핸들러를 처리하는데, 이때 `preventDefault`가 어디에서도 호출되지 않았다고 판단되면 그제야 스크롤링을 진행한다.
+- 이 과정에서 불필요한 지연이 생기고, 화면이 덜덜 떨리는 현상이 발생한다.
+- `passive: true` 옵션은 핸들러가 스크롤링을 취소하지 않을 것이라는 정보를 브라우저에게 알려주는 역할을 한다. 이 정보를 바탕으로 브라우저는 화면을 최대한 자연스럽게 스콜링할 수 있게 하고 이벤트가 적절히 처리된다.
+- Firefox, Chrome 같은 몇몇 브라우저에서 `touchstart`와 `touchmove` 이벤트의 `passive`는 기본값이 `true`다.
+
+### event.defaultPrevented
+
+- 기본 동작을 막은 경우는 `event.defaultPrevented` 값이 `true`이고, 그렇지 않은 경우는 `false`다.
+- `event.stopPropagation()` 대신에 `event.defaultPrevented`를 사용해 이벤트가 적절히 처리되었다고 다른 이벤트에게 알릴 수 있다.
+- 브라우저에서 마우스 오른쪽 버튼을 클릭하면 `contextmenu`라는 이벤트가 발생하는데 컨텍스트 메뉴 대신 다른 걸 띄울 수도 있다.
+
+```html
+<button>마우스 오른쪽 버튼을 클릭하면 컨텍스트 메뉴가 뜹니다.</button>
+
+<button oncontextmenu="alert('커스텀 메뉴가 뜨네요!'); return false">
+  여기서 마우스 오른쪽 버튼을 클릭해보세요.
+</button>
+```
+
+- 버튼이 아닌 문서 레벨에서도 자체 컨텍스트 메뉴를 뜨게 할 수도 있다.
+
+```html
+<p>문서 레벨 컨텍스트 메뉴</p>
+<button id="elem">버튼 레벨 컨텍스트 메뉴</button>
+
+<script>
+  elem.oncontextmenu = function (event) {
+    event.preventDefault();
+    alert("버튼 컨텍스트 메뉴");
+  };
+
+  document.oncontextmenu = function (event) {
+    event.preventDefault();
+    alert("문서 컨텍스트 메뉴");
+  };
+</script>
+```
+
+- 하지만 위와 같이 구현하면 `elem`을 클릭했을때 두 개의 컨텍스트 메뉴가 뜨는 문제가 있다.
+- 이 문제를 해결하기 위해 가장 먼저 떠오르는 생각으로 `event.stopPropagation()`이 있습니다.
+
+```html
+<p>문서 레벨 컨텍스트 메뉴</p>
+<button id="elem">
+  버튼 레벨 컨텍스트 메뉴(event.stopPropagation를 사용해 버그 수정)
+</button>
+
+<script>
+  elem.oncontextmenu = function (event) {
+    event.preventDefault();
+    event.stopPropagation();
+    alert("버튼 컨텍스트 메뉴");
+  };
+
+  document.oncontextmenu = function (event) {
+    event.preventDefault();
+    alert("문서 컨텍스트 메뉴");
+  };
+</script>
+```
+
+- 이제 의도한 대로 버튼 레벨의 컨텍스트 메뉴만 뜨지만 외부 코드를 사용해 더는 마우스 우클릭에 대한 정보를 얻을 수 없습니다.
+- `event.stopPropagation()` 대신에 `document` 핸들러에서 기본 동작이 막혀있는지 확인하면 문제를 해결할 수 있다.
+- 기본 동작이 막혀있는데 이벤트를 핸들링하려는 경우 이에 반응하지 않도록 하면 된다.
+
+```html
+<p>문서 레벨 컨텍스트 메뉴(event.defaultPrevented를 확인함)</p>
+<button id="elem">버튼 레벨 컨텍스트 메뉴</button>
+
+<script>
+  elem.oncontextmenu = function (event) {
+    event.preventDefault();
+    alert("버튼 컨텍스트 메뉴");
+  };
+
+  document.oncontextmenu = function (event) {
+    if (event.defaultPrevented) return;
+
+    event.preventDefault();
+    alert("문서 컨텍스트 메뉴");
+  };
+</script>
+```
+
+- 중첩 요소가 몇 개 있고, 요소마다 각각의 컨텍스트 메뉴가 있는 경우도 이젠 의도한 대로 동작한다.
+- 각 `contextmenu` 핸들러에서 `event.defaultPrevented`를 확인하면 됩니다.
+- `event.stopPropagation()`과 `return false`로 알려진 `event.preventDefault()`는 명백히 다른 메서드다.
+- 중첩 컨텍스트 메뉴를 구현하는 다른 방법으로 전역 객체에 `document.oncontextmenu` 전용 핸들러를 구현하고 다른 핸들러를 저장할 수 있게 메서드를 구현하는 방법이다.
+- 이 전역 객체는 모든 우클릭을 잡아내 내부의 핸들러를 빠르게 살펴본 후 적절한 핸들러를 실행시킨다.
+- 하지만 이 방법을 사용하면 컨텍스트 메뉴에 관련된 각 코드 조각들이 이 객체에 대해 알고 있어야 하고, 자신만의 `contextmenu` 핸들러 대신 객체에 의존하게 된다.
+
+### 요약
+
+- 각 이벤트에 대응하는 브라우저 기본 동작은 다음과 같다.
+  - `mousedown`: 마우스가 움직인 곳에서 선택을 시작함.
+  - `<input type="checkbox">`를 `click`: `input`을 선택/선택해제 한다.
+  - `submit`: 폼 안에서 `<input type="submit">`을 클릭하거나 Enter를 누르면 이벤트가 실행하고, 브라우저는 폼을 서버로 전송한다.
+  - `keydown`: 키를 누르면 텍스트 박스에 글자를 추가하거나 그 외의 다른 동작을 수행한다.
+  - `contextmenu`: 마우스 오른쪽 버튼을 클릭하면 발생하는 이벤트로, 브라우저 컨텍스트 메뉴를 보여준다.
+  - 이 외의 다양한 기본 동작이 있다.
+- 자바스크립트를 사용하면 기본 동작을 명시적으로 막을 수 있다.
+- `event.preventDefault()`나 `return false`를 사용하면 이벤트를 막을 수 있다.
+- `return false`를 사용하는 방법은 `on<event>`를 통해 할당한 핸드러에서만 동작한다.
+- `addEventListener`의 `passive: true` 옵션은 브라우저에게 기본 동작을 막지 않을 것이라는 정보를 전달하고 이 옵션은 모바일에서 발생하는 `touchstart`와 `touchmove`를 다룰 때 유용하다.
+- 기본 동작을 막은 경우, `event.defaultPrevented` 값은 `true`이고, 그렇지 않은 경우는 `false`이다.
+- 기본 동작 막기를 너무 남용하지 말아야 한다.
+  - 기본 동작을 막는 자바스크립트 코드를 추가하면 제약 없이 요소의 동작을 원하는 대로 바꿀 수 있다.
+  - 하지만 HTML 요소의 의미를 지키면서 동작을 바꿔야 한다.
+  - `<a>`는 페이지를 돌아다니는 동작을 해야 하지 버튼처럼 동작해서는 안된다.
+  - 요소가 가진 의미를 해치지 않으면서 코드를 작성하면 좋은 코드가 될 뿐만 아니라 접근성 측면에서도 도움이 된다.
+  - `<a>`와 기본 동작 막기를 조합한 코드를 구상할 때 자바스크립트로 버튼을 조작해 링크처럼 동작하게 만들고 CSS를 이용해 버튼을 링크처럼 꾸미더라도 브라우저에서 제공하는 `<a>` 관련 기능은 버튼에선 작동하지 않는다.
 
 ## 4. 커스텀 이벤트 디스패치
+
+- 자바스크립트를 사용하면 핸들러를 할당할 수 있을 뿐만 아니라 이벤트를 직접 만들 수도 있다.
+
+### Event의 생성자
+
+```js
+let event = new Event(type[, options]);
+```
+
+- 내장 이벤트 클래스는 DOM 요소 클래스같이 계층 구조를 형성하고 클래스 계츨의 꼭대기엔 Event 클래스가 있다.
+- `type`: 이벤트 타입을 나타내는 문자열로 `"click"`같은 내장 이벤트, `"my-event"`같은 커스텀 이벤트가 올 수도 있다.
+- `options`: 두 개의 선택 프로퍼티가 있는 객체가 온다.
+  - `bubbles: true/false`: 기본값은 `false`로 `true`인 경우 이벤트가 버블링된다.
+  - `cancelable: true/false`: 기본값은 `false`로 `true`인 경우 브라우저 기본 동작이 실행되지 않는다.
+
+### dispatchEvent
+
+- 이벤트 객체를 생성한 다음엔 `elem.dispatchEvent(event)`를 호출해 요소에 있는 이벤트를 반드시 실행시켜줘야 한다.
+
+```html
+<button id="elem" onclick="alert('클릭!');">자동으로 클릭 되는 버튼</button>
+
+<script>
+  let event = new Event("click");
+  elem.dispatchEvent(event);
+</script>
+```
+
+- `event.isTrusted`를 사용하면 이벤트가 스크립트를 통해 생성한 이벤트인지 진짜 사용자가 만든 이벤트인지 알 수 있다.
+- `event`의 `isTrusted` 프로퍼티가 `true`면 사용자 액션을 통해 만든 이벤트라는 것을 의미하고 `false`면 스크립트를 통해 생성되었다는 걸 알 수 있다.
+
+### 커스텀 이벤트 버블링 예시
+
+```html
+<h1 id="elem">Hello from the script!</h1>
+
+<script>
+  // 버블링이 일어나면서 document에서 이벤트가 처리됨
+  document.addEventListener("hello", function (event) {
+    // (1)
+    alert("Hello from " + event.target.tagName); // Hello from H1
+  });
+
+  // 이벤트(hello)를 만들고 elem에서 이벤트 디스패치
+  let event = new Event("hello", { bubbles: true }); // (2)
+  elem.dispatchEvent(event);
+
+  // document에 할당된 핸들러가 동작하고 메시지가 얼럿창에 출력됩니다.
+</script>
+```
+
+1. `on<event>`는 내장 이벤트에만 해당되는 문법이기 때문에 `document.onhello`라고 하면 동작하지 않고 반드시 `addEventListener`를 사용해야 핸들링된다.
+2. `bubbles: true`를 명시적으로 설정하지 않으면 이벤트가 버블링되지 않는다.
+
+- 내장 이벤트(`click`)와 커스텀 이벤트(`hello`)의 버블링 매커니즘은 동일하고 커스텀 이벤트도 캡쳐링, 버블링 단계가 있다.
+
+### MouseEvent, KeyboardEvent 등의 다양한 이벤트
+
+- 명세서의 다양한 UI 이벤트 클래스 중 일부를 추리면 다음과 같다.
+  - `UIEvent`
+  - `FocusEvent`
+  - `MouseEvent`
+  - `WheelEvent`
+  - `KeyboardEvent`
+  - 등등...
+- 그런데 이 이벤트들은 `new Event`로 만들면 안 되고, 반드시 관련 내장 클래스를 사용해야 한다.
+- 마우스 클릭 이벤트라면 `new MouseEvent("click")`를 사용해야 한다.
+- `new MouseEvent("click")`를 사용해 마우스 이벤트의 `clientX`, `clientY` 프로퍼티를 설정해보자.
+
+```js
+let event = new MouseEvent("click", {
+  bubbles: true,
+  cancelable: true,
+  clientX: 100,
+  clientY: 100,
+});
+
+alert(event.clientX); // 100
+```
+
+- 일반 `Event` 생성자를 사용해 프로퍼티를 설정해보자.
+
+```js
+let event = new Event("click", {
+  bubbles: true, // Event 생성자에선
+  cancelable: true, // bubbles와 cancelable 프로퍼티만 동작합니다.
+  clientX: 100,
+  clientY: 100,
+});
+
+alert(event.clientX); // undefined, 알 수 없는 프로퍼티이기 때문에 무시됩니다.
+```
+
+- `new Event`로 이벤트를 생성한 다음, `event.client=100`처럼 프로퍼티에 값을 직접 명시해주면 이런 제약을 피할 수 있다.
+
+### 커스텀 이벤트
+
+- 지금까진 `new Event`로 커스텀 이벤트를 만들었지만 제대로 된 커스텀 이벤트를 만들려면 `new CustomEvent`를 사용해야 한다.
+- `CustomEvent`의 두 번째 인수엔 객체가 들어갈 수 있는데, 개발자는 이 객체에 `detail`이라는 프로퍼티를 추가해 커스텀 이벤트 관련 정보를 명시하고, 정보를 이벤트에 전달할 수 있다.
+
+```html
+<h1 id="elem">장원정님, 환영합니다!</h1>
+
+<script>
+  elem.addEventListener("hello", function (event) {
+    alert(event.detail.name);
+  });
+
+  elem.dispatchEvent(
+    new CustomEvent("hello", {
+      detail: { name: "원정" },
+    })
+  );
+</script>
+```
+
+- `detail` 프로퍼티엔 어떤 데이터도 들어갈 수 있다.
+- 사실 `new Event`로 일반 이벤트를 생성한 다음 추가 정보가 담긴 프로퍼티를 이벤트 객체에 추가해주면 되지만 `detail`이라는 특별한 프로퍼티를 사용하는 이유는 다른 이벤트 프로퍼티와 충돌을 피해가기 위해서다.
+- 이 외에도 `new CustomEvent`를 사용하면 코드 자체만으로 커스텀 이벤트라고 설명해주는 효과가 있다.
+
+### event.preventDefault()
+
+- 브라우저 이벤트 대다수는 기본 동작과 함께 실행된다.
+- 직접 만든 커스텀 이벤트에도 당연히 기본 동작이 없지만 커스텀 이벤트를 만들고 디스패칭 해주는 코드에 원하는 동작을 넣으면 기본 동작을 설정해줄 수 있다.
+
+```html
+<pre id="rabbit">
+  |\   /|
+   \|_|/
+   /. .\
+  =\_Y_/=
+   {>o<}
+</pre>
+<button onclick="hide()">hide()를 호출해 토끼 숨기기</button>
+
+<script>
+  // hide() will be called automatically in 2 seconds
+  function hide() {
+    let event = new CustomEvent("hide", {
+      cancelable: true, // cancelable를 true로 설정하지 않으면 preventDefault가 동작하지 않습니다.
+    });
+    if (!rabbit.dispatchEvent(event)) {
+      alert("기본 동작이 핸들러에 의해 취소되었습니다.");
+    } else {
+      rabbit.hidden = true;
+    }
+  }
+
+  rabbit.addEventListener("hide", function (event) {
+    if (confirm("preventDefault를 호출하시겠습니까?")) {
+      event.preventDefault();
+    }
+  });
+</script>
+```
+
+- `rabbit.addEventListener("hide", ...)`를 사용하면 어떤 핸들러에서도 `"hide"`를 리스닝 할 수 있고 필요하다면 `event.preventDefault()`를 사용해 `"hide"` 이벤트의 기본 동작을 취소할 수 있다. 이렇게 기본 동작이 취소되면 토끼가 화면에서 사라지지 않는다.
+- 주의 깊게 봐야 할 점은 `cancelable: true`다.
+- `event.preventDefault()`가 제대로 동작하게 하려면 이벤트 `hide`의 `cancelable`을 반드시 `true`로 지정해줘야 하고 그렇지 않으면 무시된다.
+
+### 이벤트 안 이벤트
+
+- 이벤트는 대개 큐에서 처리된다.
+- 따라서 브라우저가 `onclick` 이벤트를 처리하고 있는데 마우스를 움직여서 새로운 이벤트를 발생시키면 이 이벤트에 상응하는 `mousemove` 핸들러는 `onclick` 이벤트 처리가 끝난 후에 호출된다.
+- 그런데 이벤트 안 `dispatchEvent`처럼 이벤트 안에 다른 이벤트가 있는 경우엔 위와 같은 규칙이 적용되지 않고 즉시 처리된다.
+
+```html
+<button id="menu">메뉴(클릭해주세요)</button>
+
+<script>
+  menu.onclick = function () {
+    alert(1);
+
+    menu.dispatchEvent(
+      new CustomEvent("menu-open", {
+        bubbles: true,
+      })
+    );
+
+    alert(2);
+  };
+
+  // 1과 2 사이에 트리거됩니다
+  document.addEventListener("menu-open", () => alert("중첩 이벤트"));
+</script>
+```
+
+- `menu-open` 이벤트 처리는 `onclick` 핸들러가 끝날 때까지 기다리지 않고 바로 처리된다.
+- 따라서 얼럿창에 1, 중첩 이벤트, 2가 차례대 출력되는 것을 확인할 수 있다.
+- 여기서 주목할 점은 중첩 이벤트 `menu-open`이 `document`에 할당된 핸들러에서 처리된다는 점이다.
+- 중첩 이벤트 전파와 핸들링이 외부 코드(`onclick`)의 처리가 다시 시작되기 전에 끝났다.
+- 이런 일은 중첩 이벤트가 `dispatchEvent`일 뿐만 아니라 이벤트 핸들러 안에서 다른 이벤트를 트리거하는 메서드를 호출할 때 발생한다.
+- 즉, 이벤트 안에 이벤트는 동기적으로 처리된다.
+- 때에 따라 중첩 이벤트가 동기적으로 처리되는 걸 원치 않는 경우 `onclick` 끝에 `dispatchEvent`등의 이벤트 트리거 호출을 넣는 게 하나의 방법이 될 수 있고 추가로 중첩 이벤트를 지연시간이 0인 `setTimeout`으로 감싸는 것도 방법이다.
+
+```html
+<button id="menu">Menu (click me)</button>
+
+<script>
+  menu.onclick = function () {
+    alert(1);
+
+    setTimeout(() =>
+      menu.dispatchEvent(
+        new CustomEvent("menu-open", {
+          bubbles: true,
+        })
+      )
+    );
+
+    alert(2);
+  };
+
+  document.addEventListener("menu-open", () => alert("중첩 이벤트"));
+</script>
+```
+
+### 요약
+
+- 코드를 사용해 이벤트를 직접 생성하려면 먼저 이벤트 객체를 만들어야 한다.
+- 범용적으로 쓰이는 `Event(name, options)` 클래스의 생성자는 임의의 이벤트 이름과 두 개의 프로퍼티가 있는 `options`라는 객체를 받는다.
+  - `bubbles`: `true`면 이벤트는 버블링된다.
+  - `cancelable`: `true`면 `event.preventDefault()`가 동작한다.
+- 이 외 `MouseEvent`, `KeyboardEvent` 같은 네이티브 이벤트 클래스의 생성자들은 이벤트 특유의 프로퍼티를 받는다.
+- 이벤트를 직접 만드는 경우라면 `CustomEvent` 생성자를 써야 한다.
+- `CustomEvent` 생성자엔 `detail`이라는 추가 프로퍼티를 명시할 수 있는데 여기에 이벤트 관련 정보를 저장하고 이렇게 하면 모든 핸들러에서 `event.detail`을 통해 커스텀 이벤트 정보를 알 수 있다.
+- 커스텀 이벤트의 이름을 `click`이나 `keydown` 같이 브라우저 내장 이벤트처럼 지을 수 있지만 되도록이면 내장 이벤트와 같은 이름을 가진 브라우저 이벤트를 만들지 않는 것이 좋다.
+  - 서드파티 라이브러리가 제대로 동작하게 하려면 꼭 필요한 경우: 네이티브 이벤트를 만드는 것 외에는 서드파티 라이브러리와 상호작용할 수 있는 수단이 없는 경우에는 괜찮다.
+  - 테스팅을 자동화 하려는 경우: 버튼 클릭 등의 이벤트를 사용자 동작없이 코드만으로 유발시키고 제대로 동작하는지 확인하고자 할 때는 괜찮다.
