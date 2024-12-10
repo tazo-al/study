@@ -74,7 +74,7 @@ const addSixPure = (arr) => {
   export default App;
   ```
 
-  ![순수 함수를 사용하지 않은 경우](./images/react-%20pure-function-1.gif)
+  ![순수 함수를 사용하지 않은 경우](./images/react/react-pure-function-1.gif)
 
   - 렌더링되지 않는 것을 확인할 수 있다.
 
@@ -106,7 +106,7 @@ const addSixPure = (arr) => {
   export default App;
   ```
 
-  ![순수 함수를 사용한 경우](./images/react-pure-function-2.gif)
+  ![순수 함수를 사용한 경우](./images/react/react-pure-function-2.gif)
 
   - 정상적으로 렌더링 되는 것을 확인할 수 있다.
 
@@ -223,7 +223,7 @@ export default App;
 
 - 콘솔을 확인해보면, `ref`에는 값이 아래와 같이 담겨있다.
 
-![useRef에 값이 담긴 모습](./images/use-ref-1.png)
+![useRef에 값이 담긴 모습](./images/react/use-ref-1.png)
 
 - 값을 변경할 수도 있다.
 
@@ -250,7 +250,7 @@ export default App;
 
 - 콘솔에 출력된 값은 아래와 같다.
 
-![useRef 값 변경 시 콘솔](./images/use-ref-2.png)
+![useRef 값 변경 시 콘솔](./images/react/use-ref-2.png)
 
 - **이렇게 설정된 `ref` 값은 컴포넌트가 계속 렌더링 되어도 `unmount` 전까지 값을 유지한다.**
 - 이러한 특징 때문에 `useRef`는 다음 두 가지 용도로 사용된다.
@@ -287,7 +287,7 @@ export default App;
 ### memo(Rect.memo)
 
 - 부모 컴포넌트가 리렌더링 되면서 자식 컴포넌트는 모두 리렌더링 된다는 것을 그림으로 보면
-  ![부모 컴포넌트에 따라 리렌더링 되는 자식 컴포넌트를 표현한 그림](./images/memo-1.png)
+  ![부모 컴포넌트에 따라 리렌더링 되는 자식 컴포넌트를 표현한 그림](./images/react/memo-1.png)
   - 1번 컴포넌트가 리렌더링되면 2~7번이 모두 리렌더링 된다.
   - 4번 컴포넌트가 리렌더링되면 6, 7번이 모두 리렌더링 된다.
 - 자식 컴포넌트가 바뀐게 없는데 불필요하게 리렌더링되는 걸 방지하는 도구가 `React.memo`다.
@@ -416,7 +416,7 @@ export default App;
   ```
 
 - 위와 같은 코드를 작성하고 plus 또는 minus 버튼을 누르면 모든 하위 컴포넌트가 리렌더링되는 걸 확인할 수 있다.
-  ![리렌더링되는 모습](./images/re-rendering.png)
+  ![리렌더링되는 모습](./images/react/re-rendering.png)
 - 실제로 변한 것은 부모 컴포넌트인 `App.jsx` 뿐인데도 말이다.
 
 #### memo를 통해 해결해보기
@@ -432,7 +432,7 @@ export default React.memo(Box3);
 
 - 이렇게 사용하면 최초 렌더링 이외에 부모 컴포넌트의 `state`가 변경되더라도 자식 컴포넌트들은 렌더링되지 않는다.
 
-![React.memo를 통해 컴포넌트 리렌더링을 방지한 모습](./images/react-memo-1.png)
+![React.memo를 통해 컴포넌트 리렌더링을 방지한 모습](./images/react/react-memo-1.png)
 
 ### useCallback
 
@@ -494,7 +494,7 @@ function Box1({ initCount }) {
 
 - plus, minus, 초기화 버튼을 누를 때 모두 `App` 컴포넌트와 `Box1` 컴포넌트가 리렌더링되는 걸 확인할 수 있다.
 
-![useCallback을 사용하기 전 리렌더링되는 화면](./images/before-use-callback.png)
+![useCallback을 사용하기 전 리렌더링되는 화면](./images/react/before-use-callback.png)
 
 - `React.memo`를 통해서 `Box1`을 메모이제이션 했는데 왜 리렌더링이 될까?
   - 함수형 컴포넌트를 사용하기 때문이다.
